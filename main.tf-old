@@ -1,0 +1,58 @@
+/*
+resource "google_compute_network" "vpc_network" {
+  name = "terraform-network"
+}
+*/
+
+variable "use_public_ip" {
+  description = "Boolean for using Public IP address."
+  type = bool
+  default = false
+}
+
+variable list1 {
+  type = list
+  default = []
+}
+
+variable "access_config" {
+  description = "Access configurations, i.e. IPs via which the VM instance can be accessed via the Internet."
+  type = list(object({
+    nat_ip       = string
+    network_tier = string
+  }))
+  default = []
+}
+
+locals {
+  access_config = {
+    nat_ip       = google_compute_address.gcp_sap_bastion_ip.address
+    network_tier = "PREMIUM"
+  }
+}
+
+resource "google_compute_address" "gcp_sap_bastion_ip" {
+  name         = "sap-ip"
+  address_type = var.use_public_ip ? "EXTERNAL" : "INTERNAL"
+  subnetwork   = var.use_public_ip ? null : "default"         # "projects/${local.subnetwork_project}/regions/${local.region}/subnetworks/${var.subnetwork}"
+  region       = "us-central1" 	            #local.region
+  project      = "sigma-hallway-297803"   #var.project_id
+  purpose      = var.use_public_ip ? null : "GCE_ENDPOINT"
+}
+
+/*
+resource "null_resource" "test1" {
+  #provider aws.log
+  provisioner "local-exec" {
+    #list1 = google_compute_address.gcp_sap_bastion_ip.*.address
+    command = "echo ${tostring(google_compute_address.gcp_sap_bastion_ip.*.address)}"
+  }
+}
+*/
+
+module "gcp-instance" {
+  
+  source = "./module1/instance"
+  access_config = var.use_public_ip ? [local.access_config] : []
+
+}
